@@ -32,9 +32,12 @@ public class H5File {
         return H5.H5Sget_simple_extent_ndims(dataspace);
     }
 
+    public static int[] byte2int(byte[] values) {
+        return HDFNativeData.byteToInt(values);
+    }
 
-    public static String getDataTypeName(long dataType) {
-        return H5.H5Tget_class_name(dataType);
+    public static String getDataTypeName(long dataTypeClass) {
+        return H5.H5Tget_class_name(dataTypeClass);
     }
 
     public H5Dataset createDataset(String name, long dataType, long[] dimensions, long[] maxDimension) {
@@ -66,35 +69,7 @@ public class H5File {
         return null;
     }
 
-    public Object readData(String name, int index, int count) {
-        //
-        H5Dataset dataset = openedDatasets.get(name);
-        long dataspace = H5.H5Dget_space(dataset.datasetHandle);
 
-        long[] offset = getDatasetDims(dataset.getRank());
-        long[] dimCount = offset.clone();
-        dimCount[0] = count;
-
-
-        //select memory space
-        long memspace = H5.H5Screate_simple(dataset.getRank(), dimCount, null);
-        H5.H5Sselect_hyperslab(memspace, HDF5Constants.H5S_SELECT_SET, offset, null, dimCount, null);
-
-        int valueCount = 1;
-        for (int i = 0; i < dimCount.length; i++) {
-            valueCount *= dimCount[i];
-        }
-        byte[] values = new byte[(int)dataset.getTypeSize() * valueCount];
-        //select data space
-        offset[0] = index;
-        H5.H5Sselect_hyperslab(dataspace, HDF5Constants.H5S_SELECT_SET, offset, null, dimCount, null);
-
-
-        H5.H5Dread(dataset.datasetHandle, dataset.getRank(), memspace, dataset.datasetHandle, HDF5Constants.H5P_DEFAULT, values);
-
-        return values;
-
-    }
 
     public static class H5Dataset {
         long datasetHandle;
@@ -102,6 +77,8 @@ public class H5File {
         long[] dimensions;
         long type;
         long typeSize;
+        long typeClass;
+        long memspace;
 
         public long getType() {
             return type;
@@ -114,8 +91,15 @@ public class H5File {
         public H5Dataset(long datasetHandle, int rank, long type) {
             this.datasetHandle = datasetHandle;
             this.rank = rank;
-            this.type = H5.H5Tget_class(type);
+            this.type = type;
             this.typeSize = H5.H5Tget_size(type);
+            this.typeClass = H5.H5Tget_class(type);
+            this.dimensions = new long[rank];
+            this.memspace = -1L;
+        }
+
+        public long getTypeClass() {
+            return typeClass;
         }
 
         public int getRank() {
@@ -128,6 +112,37 @@ public class H5File {
 
         public void setDimensions(long[] dimensions) {
             this.dimensions = dimensions;
+        }
+
+        public byte[] readData(int index, int count) {
+            //
+            long dataspace = H5.H5Dget_space(datasetHandle);
+            H5.H5Sget_simple_extent_dims(dataspace, dimensions, null);
+            long[] offset =  new long[rank];
+            long[] dimCount = dimensions.clone();
+            dimCount[0] = count;
+            //dimCount[1] = 3;
+
+            //select memory space
+            if (memspace == -1L){
+                memspace = H5.H5Screate_simple(getRank(), dimCount, null);
+                H5.H5Sselect_hyperslab(memspace, HDF5Constants.H5S_SELECT_SET, offset, null, dimCount, null);
+            }
+
+            int valueCount = 1;
+            for (int i = 0; i < dimCount.length; i++) {
+                valueCount *= dimCount[i];
+            }
+            byte[] values = new byte[(int)getTypeSize() * valueCount];
+            //select data space
+            offset[0] = index;
+            H5.H5Sselect_hyperslab(dataspace, HDF5Constants.H5S_SELECT_SET, offset, null, dimCount, null);
+
+
+            H5.H5Dread(datasetHandle, type, memspace, dataspace, HDF5Constants.H5P_DEFAULT, values);
+
+            return values;
+
         }
     }
 }

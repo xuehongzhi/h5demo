@@ -268,17 +268,32 @@ public class H5Demo {
     }
 
     public static void main(String[] args) {
-        H5File file = new H5File("H5Ex_D_Hyperslab.h5");
-        long ds = file.openDataset("DS2");
-        if (ds == -1) {
+        H5File file = new H5File("E:\\03.code\\h5\\hdf_test\\x64\\Release\\big.cgd");
+        H5File.H5Dataset ds = file.openDataSet("AMPN");
+        if (ds == null) {
             System.out.println("open data set failed");
+            return;
         }
 
-        long rank = file.getDatasetRank("DS2");
-        String type = file.getDataTypeName("DS2");
+        long rank = ds.getRank();
+        String type = file.getDataTypeName(ds.getTypeClass());
         System.out.println(String.format("%s rank is %d and data type is %s", "DS2", rank, type));
 
-        
+        for (int i = 0; i < 3; i++) {
+            final int offset = i;
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    long before = System.currentTimeMillis();
+                    for (int j =offset; j < 1000 + offset; j++) {
+                        final byte[] bytes = ds.readData(offset + j, 1);
+                    }
+                    System.out.println(System.currentTimeMillis() - before);
+                }
+            });
+            t.start();
+        }
+
     }
 
 }
