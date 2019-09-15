@@ -32,9 +32,22 @@ public class H5File {
         return H5.H5Sget_simple_extent_ndims(dataspace);
     }
 
+    public static float[] byte2float(byte[] values) {
+        return HDFNativeData.byteToFloat(values);
+    }
+
     public static int[] byte2int(byte[] values) {
         return HDFNativeData.byteToInt(values);
     }
+
+    public static double[] byte2double(byte[] values) {
+        return HDFNativeData.byteToDouble(values);
+    }
+
+    public static short[] byte2short(byte[] values) {
+        return HDFNativeData.byteToShort(values);
+    }
+
 
     public static String getDataTypeName(long dataTypeClass) {
         return H5.H5Tget_class_name(dataTypeClass);
@@ -70,7 +83,6 @@ public class H5File {
     }
 
 
-
     public static class H5Dataset {
         long datasetHandle;
         int rank;
@@ -78,6 +90,7 @@ public class H5File {
         long type;
         long typeSize;
         long typeClass;
+        long dataspace;
         long memspace;
 
         public long getType() {
@@ -94,7 +107,9 @@ public class H5File {
             this.type = type;
             this.typeSize = H5.H5Tget_size(type);
             this.typeClass = H5.H5Tget_class(type);
+            this.dataspace = H5.H5Dget_space(datasetHandle);
             this.dimensions = new long[rank];
+            H5.H5Sget_simple_extent_dims(dataspace, dimensions, null);
             this.memspace = -1L;
         }
 
@@ -114,10 +129,8 @@ public class H5File {
             this.dimensions = dimensions;
         }
 
-        public byte[] readData(int index, int count) {
-            //
-            long dataspace = H5.H5Dget_space(datasetHandle);
-            H5.H5Sget_simple_extent_dims(dataspace, dimensions, null);
+        public synchronized  byte[] readData(int index, int count) {
+
             long[] offset =  new long[rank];
             long[] dimCount = dimensions.clone();
             dimCount[0] = count;
@@ -133,7 +146,7 @@ public class H5File {
             for (int i = 0; i < dimCount.length; i++) {
                 valueCount *= dimCount[i];
             }
-            byte[] values = new byte[(int)getTypeSize() * valueCount];
+            byte[] values = new byte[(int)typeSize * valueCount];
             //select data space
             offset[0] = index;
             H5.H5Sselect_hyperslab(dataspace, HDF5Constants.H5S_SELECT_SET, offset, null, dimCount, null);

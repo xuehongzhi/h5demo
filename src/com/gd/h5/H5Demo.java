@@ -25,11 +25,29 @@ package com.gd.h5;
 
 import hdf.hdf5lib.H5;
 import hdf.hdf5lib.HDF5Constants;
+import hdf.hdf5lib.exceptions.HDF5FileInterfaceException;
+
+import java.io.IOException;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.*;
 
 /**
  *
  * @author xue
  */
+
+ class MsgFormater extends Formatter{
+    @Override
+    public String format(LogRecord record) {
+        return String.format(record.getMessage());
+    }
+
+    protected MsgFormater() {
+        super();
+    }
+}
+
 public class H5Demo {
 
     private static String FILENAME = "H5Ex_D_Hyperslab.h5";
@@ -267,8 +285,9 @@ public class H5Demo {
         }
     }
 
+
     public static void main(String[] args) {
-        H5File file = new H5File("E:\\03.code\\h5\\hdf_test\\x64\\Release\\big.cgd");
+        H5File file = new H5File("E:\\04.code\\h5\\h5_test\\big.cgd");
         H5File.H5Dataset ds = file.openDataSet("AMPN");
         if (ds == null) {
             System.out.println("open data set failed");
@@ -279,16 +298,38 @@ public class H5Demo {
         String type = file.getDataTypeName(ds.getTypeClass());
         System.out.println(String.format("%s rank is %d and data type is %s", "DS2", rank, type));
 
-        for (int i = 0; i < 3; i++) {
-            final int offset = i;
-            Thread t = new Thread(new Runnable() {
+        Random rd = new Random();
+
+        AtomicInteger ai = new AtomicInteger();
+        for (int i = 0; i < 1; i++) {
+            final int offset = rd.nextInt(1000);
+            final Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    long before = System.currentTimeMillis();
-                    for (int j =offset; j < 1000 + offset; j++) {
-                        final byte[] bytes = ds.readData(offset + j, 1);
+                    Logger logger = Logger.getLogger(String.valueOf(offset));
+                    try {
+
+//                        FileHandler handler = new FileHandler(String.format("logs%d.txt", ai.getAndAdd(1)));
+//                        MsgFormater sf = new MsgFormater();
+//                        logger.setLevel(Level.INFO);
+//                        handler.setFormatter(sf);
+//                        logger.addHandler(handler);
+                        long before = System.currentTimeMillis();
+                        for (int j =offset; j < 5000 + offset; j++) {
+                            final byte[] bytes = ds.readData(j, 1);
+                           // float[] values = H5File.byte2float(bytes);
+//                            logger.info(String.valueOf(j) + "\t");
+//                            for (int k = 0; k < values.length; k++) {
+//                                logger.info(values[k] + " ");
+//                            }
+//                            logger.info("\n");
+                        }
+
+                        System.out.println(System.currentTimeMillis() - before);
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-                    System.out.println(System.currentTimeMillis() - before);
+
                 }
             });
             t.start();
